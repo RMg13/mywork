@@ -1,0 +1,146 @@
+import numpy as np
+import pandas as pd
+import os
+os.chdir("E:/Analytics Vidya/Jobathon APR2022")
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestRegressor
+from sklearn import svm
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import train_test_split
+import xgboost as xgb
+
+train=pd.read_csv("train_E1GspfA.csv")
+train.head()
+test=pd.read_csv("test_6QvDdzb.csv")
+
+train_date_time=pd.DataFrame({"year":train['date'].str.slice(0,4),
+                         "month":train['date'].str.slice(5,7),
+                         "day":train['date'].str.slice(8,10),
+                         "hour":train['hour']})
+train['ds']=pd.to_datetime(train_date_time)
+train.head()
+
+test_date_time=pd.DataFrame({"year":test['date'].str.slice(0,4),
+                         "month":test['date'].str.slice(5,7),
+                         "day":test['date'].str.slice(8,10),
+                         "hour":test['hour']})
+test['ds']=pd.to_datetime(test_date_time)
+test.head()
+
+train['ds_hour'] = train['ds'].dt.hour
+train['dayofweek'] = train['ds'].dt.dayofweek
+train['quarter'] = train['ds'].dt.quarter
+train['month'] = train['ds'].dt.month
+train['year'] = train['ds'].dt.year
+train['dayofyear'] = train['ds'].dt.dayofyear
+train['sin_day'] = np.sin(train['dayofyear'])
+train['cos_day'] = np.cos(train['dayofyear'])
+train['dayofmonth'] = train['ds'].dt.day
+train['weekofyear'] = train['ds'].dt.weekofyear
+train.head()
+
+test['ds_hour'] = test['ds'].dt.hour
+test['dayofweek'] = test['ds'].dt.dayofweek
+test['quarter'] = test['ds'].dt.quarter
+test['month'] = test['ds'].dt.month
+test['year'] = test['ds'].dt.year
+test['dayofyear'] = test['ds'].dt.dayofyear
+test['sin_day'] = np.sin(test['dayofyear'])
+test['cos_day'] = np.cos(test['dayofyear'])
+test['dayofmonth'] = test['ds'].dt.day
+test['weekofyear'] = test['ds'].dt.weekofyear
+test.head()
+
+train_1=train.drop(['date','hour','ds'],axis=1)
+train_1.head()
+test_1=test.drop(['date','hour','ds'],axis=1)
+test_1.head()
+
+x=train_1.drop(['demand'],axis=1)
+x_fit=StandardScaler().fit(x)
+x_tnf=x_fit.transform(x)
+x_train_1=pd.DataFrame(x_tnf)
+round(x_train_1.describe(),4)
+
+x_test=test_1
+x_fit_test=StandardScaler().fit(x_test)
+x_tnf_test=x_fit_test.transform(x_test)
+test_x=pd.DataFrame(x_tnf_test)
+test_x.head()
+
+y=train_1['demand']
+y
+
+x_train,x_test,y_train,y_test=train_test_split(x_train_1,y,test_size=0.2)
+
+model_params={
+    'svm':{
+        'model':svm.SVR(gamma='auto'),
+        'params':{
+            'C':[1,10,20],
+            'kernel':['rbf','linear','poly']
+        }
+    },
+    'random_forest':{
+        'model':RandomForestRegressor(),
+        'params':{
+            'n_estimators':[1,5,10]
+        }
+    },
+    'GB_regression':{
+        'model':GradientBoostingRegressor(),
+        'params':{
+            'n_estimators':[20,50,100],
+            'learning_rate':[0.1,0.15,0.2]
+        }
+    },
+    'XGB_regression':{
+        'model':xgb.XGBRegressor(),
+        'params':{
+            'n_estimators':[20,50,100],
+            'learning_rate':[0.1,0.15,0.2]
+        }
+    }
+
+}
+
+scores=[]
+
+for model_name,mp in model_params.items():
+    clf=GridSearchCV(mp['model'],mp['params'],cv=5,return_train_score=False)
+    clf.fit(x_train,y_train)
+    scores.append({
+        'model':model_name,
+        'best_score':clf.best_score_,
+        'best_params':clf.best_params_
+    })
+pd.DataFrame(scores,columns=['model','best_score','best_params'])
+
+
+
+md_svm=svm.SVR(gamma='auto',C=20,kernel='rbf')
+md_svm.fit(x_train_1,y)
+md_svm_prdt=md_svm.predict(test_x)
+df_md_svm_prdt=pd.DataFrame(md_svm_prdt)
+#df_md_svm_prdt.to_csv('y_results_svm.csv')
+
+md_rf=RandomForestRegressor(n_estimators=10)
+md_rf.fit(x_train_1,y)
+md_rf_prdt=md_rf.predict(test_x)
+df_md_rf_prdt=pd.DataFrame(md_rf_prdt)
+#df_md_rf_prdt.to_csv('y_results_rf.csv')
+
+md_gb=GradientBoostingRegressor(learning_rate=0.2,n_estimators=100)
+md_gb.fit(x_train_1,y)
+md_gb_prdt=md_gb.predict(test_x)
+df_md_gb_prdt=pd.DataFrame(md_gb_prdt)
+#df_md_gb_prdt.to_csv('y_results_gb.csv')
+
+md_xgb=xgb.XGBRegressor(learning_rate=0.1,n_estimators=100)
+md_xgb.fit(x_train_1,y)
+md_xgb_prdt=md_xgb.predict(test_x)
+df_md_xgb_prdt=pd.DataFrame(md_xgb_prdt)
+#df_md_xgb_prdt.to_csv('y_results_xgb.csv')

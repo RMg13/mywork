@@ -1,0 +1,86 @@
+import pandas as pd
+import numpy as np
+train_path=("/content/train_E1GspfA.csv")
+from fbprophet import Prophet
+import seaborn as sb
+
+train=pd.read_csv(train_path)
+train.head()
+
+ train.info()
+
+train.isnull().sum()
+
+sumrz=pd.DataFrame({'count':train.groupby('hour')['demand'].count(),
+              'sum':train.groupby('hour')['demand'].sum(),
+              'mean':round(train.groupby('hour')['demand'].mean(),2)})
+sumrz
+
+sumrz['sum'].plot()
+
+sumrz['count'].plot()
+
+train_date_time=pd.DataFrame({"year":train['date'].str.slice(0,4),
+                         "month":train['date'].str.slice(5,7),
+                         "day":train['date'].str.slice(8,10),
+                         "hour":train['hour']})
+train['ds']=pd.to_datetime(train_date_time)
+train.head()
+
+train.info()
+
+train.iloc[:,[2,3]]
+train_1=pd.DataFrame({'ds':train['ds'],'y':train['demand']})
+train_1.head()
+
+#Fitting by Prophet Model
+m1=Prophet()
+m1.fit(train_1)
+
+future = m1.make_future_dataframe(periods=90)
+forecast = m1.predict(future)
+m1.plot_components(forecast)
+
+m1.plot(forecast)
+
+forecast.head()
+
+train_1.head()
+
+from fbprophet.diagnostics import cross_validation
+df_cv = cross_validation(m1, initial='895 days', period='15 days', horizon = '30 days')
+df_cv.head()
+
+from fbprophet.diagnostics import performance_metrics
+df_p = performance_metrics(df_cv)
+df_p.head()
+
+test_path=("/content/test_6QvDdzb.csv")
+test=pd.read_csv(test_path)
+test.head()
+
+test_date_time=pd.DataFrame({"year":test['date'].str.slice(0,4),
+                         "month":test['date'].str.slice(5,7),
+                         "day":test['date'].str.slice(8,10),
+                         "hour":test['hour']})
+test['ds']=pd.to_datetime(test_date_time)
+test.head()
+
+test.iloc[:,2]
+test_1=pd.DataFrame({'ds':test['ds']})
+test_1.head()
+
+forecast = m1.predict(test_1)
+m1.plot_components(forecast)
+
+m1.plot(forecast)
+
+from fbprophet.diagnostics import cross_validation
+df_cv = cross_validation(m1, initial='895 days', period='15 days', horizon = '30 days')
+df_cv.head()
+
+forecast.head()
+
+#from google.colab import files
+#forecast.to_csv('forecast.csv') 
+#files.download('forecast.csv')

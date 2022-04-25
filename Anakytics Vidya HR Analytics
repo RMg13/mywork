@@ -1,0 +1,196 @@
+import os
+import numpy as np
+import pandas as pd
+os.chdir("E:/Analytics Vidya/HR Analytics")
+import seaborn as sb
+import matplotlib.pyplot as plt
+%matplotlib inline
+import tensorflow as tf
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn import svm
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+from sklearn.decomposition import PCA
+#from xgboost import XGBClassifier
+#from sklearn.impute import KNNImputer
+#impute=KNNImputer(n_neighobrs=5)
+
+train=pd.read_csv("train_LZdllcl.csv")
+test=pd.read_csv("test_2umaH9m.csv")
+train.head()
+
+train.shape,train.info()
+
+train.isnull().sum()
+
+round(train.describe(),2)
+
+#fill missing values
+train_1=train.apply(lambda x:x.fillna(x.value_counts().index[0])
+              if x.dtype=='object'
+              else x.fillna(x.mean()))
+
+train_1.isnull().sum(),train_1.shape
+
+num_train=train_1.iloc[:,6:13]
+chr_train=train_1.iloc[:,1:6]
+y_train=train_1.iloc[:,13]
+
+round(num_train.describe(),2)
+
+sb.pairplot(num_train)
+
+chr_train.head()
+
+chr_train_dm=pd.get_dummies(chr_train)
+chr_train_dm.head()
+
+transformer = PCA(0.7)
+tnf=transformer.fit_transform(chr_train_dm)
+
+transformer.explained_variance_ratio_,tnf.shape
+
+chr_tnf=pd.DataFrame(tnf)
+chr_tnf['index']=range(1,len(chr_tnf)+1)
+num_train['index']=range(1,len(num_train)+1)
+num_train.head()
+
+train_1=pd.merge(num_train,chr_tnf,on='index',copy=False)
+x_train=train_1.drop(columns='index')
+x_train.head()
+
+scld_x_train=StandardScaler().fit(x_train)
+scld_x_train
+
+tnf_x_train=scld_x_train.transform(x_train)
+df_x_train=pd.DataFrame(tnf_x_train)
+df_x_train['index']=range(1,len(tnf_x_train)+1)
+df_x_train_1=df_x_train.drop(columns='index')
+#df_y_train=pd.DataFrame(y_train)
+#df_y_train['index']=range(1,len(df_y_train)+1)
+#df_y_train_1=df_y_train.drop(columns='index')
+#df=pd.merge(df_x_train,df_y_train,on='index',copy=False)
+#df.head()
+
+md_rf_1=RandomForestClassifier(n_estimators=5)
+md_rf_1.fit(df_x_train_1,y_train)
+round(md_rf_1.score(df_x_train_1,y_train),4)
+
+md_svm_1=svm.SVC(gamma='auto',C=10,kernel='rbf')
+md_svm_1.fit(df_x_train_1,y_train)
+md_svm_1.score(df_x_train_1,y_train)
+
+md_rf_2=RandomForestClassifier(n_estimators=10,criterion='entropy')
+md_rf_2.fit(df_x_train_1,y_train)
+round(md_rf_2.score(df_x_train_1,y_train),4)
+
+md_svm_2=svm.SVC(gamma='auto',C=10,kernel='poly')
+md_svm_2.fit(df_x_train_1,y_train)
+md_svm_2.score(df_x_train_1,y_train)
+
+md_lg_1=LogisticRegression(solver='liblinear',C=5)
+md_lg_1.fit(df_x_train_1,y_train)
+md_lg_1.score(df_x_train_1,y_train)
+
+md_rf_2
+
+clf=GridSearchCV(RandomForestClassifier(),{'n_estimators':[5,10,15]},cv=5,return_train_score=False)
+clf.fit(df_x_train_1,y_train)
+clf.best_score_,clf.best_params_
+
+train_x,test_x,train_y,test_y=train_test_split(df_x_train_1,y_train,test_size=0.15)
+
+train_md_rf=RandomForestClassifier(n_estimators=10)
+train_md_rf.fit(train_x,train_y)
+train_md_rf.score(train_x,train_y)
+
+y_vald=train_md_rf.predict(train_x)
+y_pred=train_md_rf.predict(test_x)
+
+accuracy_score(train_y,y_vald),accuracy_score(test_y,y_pred),f1_score(train_y,y_vald),f1_score(test_y,y_pred)
+
+print(classification_report(train_y,y_vald))
+
+print(classification_report(test_y,y_pred))
+
+train_md_svm=svm.SVC(gamma='auto',C=10,kernel='rbf')
+train_md_svm.fit(train_x,train_y)
+train_md_svm.score(train_x,train_y)
+
+y_vald_svm=train_md_svm.predict(train_x)
+y_pred_svm=train_md_svm.predict(test_x)
+
+accuracy_score(train_y,y_vald_svm),accuracy_score(test_y,y_pred_svm),f1_score(train_y,y_vald_svm),f1_score(test_y,y_pred_svm)
+
+print(classification_report(train_y,y_vald_svm))
+
+print(classification_report(test_y,y_pred_svm))
+
+### Testing Part
+
+test.isnull().sum()
+
+test_1=test.apply(lambda x:x.fillna(x.value_counts().index[0])
+              if x.dtype=='object'
+              else x.fillna(x.mean()))
+
+test_1.isnull().sum()
+
+num_test=test_1.iloc[:,6:13]
+chr_test=test_1.iloc[:,1:6]
+
+chr_test_dm=pd.get_dummies(chr_test)
+transformer = PCA(0.7)
+tnf_test=transformer.fit_transform(chr_test_dm)
+chr_tnf_test=pd.DataFrame(tnf_test)
+chr_tnf_test['index']=range(1,len(chr_tnf_test)+1)
+num_test['index']=range(1,len(num_test)+1)
+test_1=pd.merge(num_test,chr_tnf_test,on='index',copy=False)
+x_test=test_1.drop(columns='index')
+x_test.head()
+
+scld_x_test=StandardScaler().fit(x_test)
+tnf_x_test=scld_x_test.transform(x_test)
+df_x_test=pd.DataFrame(tnf_x_test)
+df_x_test.head()
+
+y_pred=train_md_rf.predict(df_x_test)
+y_df=pd.DataFrame(y_pred)
+
+y_df.to_csv('y_results.csv')
+
+Missing value imputed by most frequentist for categorical and mean for numerical data. PCA used on dummies of categorical data, then scaled whole data for Random Forest
+
+### XGboost
+
+md_xgb=XGBClassifier(learning_rate=0.25,n_estimators=50,n_jobs=4)
+md_xgb.fit(train_x,train_y)
+
+y_pred_xgb_split=md_xgb.predict(test_x)
+accuracy_score(y_pred_xgb_split,test_y)
+
+print(classification_report(y_pred_xgb_split,test_y))
+
+y_pred_xb=md_xgb.predict(df_x_test)
+y_df_xgb=pd.DataFrame(y_pred_xb)
+y_df_xgb.to_csv('y_results_xbg.csv')
+
+tf.random.set_seed(1289)
+
+model_1 = tf.keras.Sequential([tf.keras.layers.Dense(5000),
+                              tf.keras.layers.Dense(500),
+                              tf.keras.layers.Dense(50),
+                              tf.keras.layers.Dense(5),
+                              tf.keras.layers.Dense(1),])
+model_1.compile(loss=tf.keras.losses.BinaryCrossentropy(),
+                optimizer=tf.keras.optimizers.Adam(), 
+                metrics=['accuracy'])
+
+model_1.fit(df_x_train_1,y_train,epochs=50)
+
+df_x_train_1.head()

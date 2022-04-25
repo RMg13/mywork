@@ -1,0 +1,431 @@
+Importing Libabries and Data
+import numpy as np
+import pandas as pd
+import os  
+import seaborn as sb
+os.chdir("D:/Absolutdata")
+import matplotlib.pyplot as plt
+%matplotlib inline
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn import svm
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import r2_score
+df=pd.read_csv("Training Data - Classification of Patients with Abnormal Blood Pressure.csv")
+df.head()
+Patient_Number	Blood_Pressure_Abnormality	Level_of_Hemoglobin	Genetic_Pedigree_Coefficient	Age	BMI	Sex	Pregnancy	Smoking	Physical_activity	salt_content_in_the_diet	alcohol_consumption_per_day	Level_of_Stress	Chronic_kidney_disease	Adrenal_and_thyroid_disorders
+0	1	1	11.28	0.90	34	23	1	1.0	0	45961	48071	NaN	2	1	1
+1	2	0	9.75	0.23	54	33	1	NaN	0	26106	25333	205.0	3	0	0
+2	3	1	10.79	0.91	70	49	0	NaN	0	9995	29465	67.0	2	1	0
+3	4	0	11.00	0.43	71	50	0	NaN	0	10635	7439	242.0	1	0	0
+4	5	1	14.17	0.83	52	19	0	NaN	0	15619	49644	397.0	2	0	0
+Data Cleaning
+#understanding shape and attributes in data
+df.shape,df.info()
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 2000 entries, 0 to 1999
+Data columns (total 15 columns):
+Patient_Number                   2000 non-null int64
+Blood_Pressure_Abnormality       2000 non-null int64
+Level_of_Hemoglobin              2000 non-null float64
+Genetic_Pedigree_Coefficient     1908 non-null float64
+Age                              2000 non-null int64
+BMI                              2000 non-null int64
+Sex                              2000 non-null int64
+Pregnancy                        442 non-null float64
+Smoking                          2000 non-null int64
+Physical_activity                2000 non-null int64
+salt_content_in_the_diet         2000 non-null int64
+alcohol_consumption_per_day      1758 non-null float64
+Level_of_Stress                  2000 non-null int64
+Chronic_kidney_disease           2000 non-null int64
+Adrenal_and_thyroid_disorders    2000 non-null int64
+dtypes: float64(4), int64(11)
+memory usage: 234.5 KB
+((2000, 15), None)
+#no.of missing values
+df.isnull().sum()
+Patient_Number                      0
+Blood_Pressure_Abnormality          0
+Level_of_Hemoglobin                 0
+Genetic_Pedigree_Coefficient       92
+Age                                 0
+BMI                                 0
+Sex                                 0
+Pregnancy                        1558
+Smoking                             0
+Physical_activity                   0
+salt_content_in_the_diet            0
+alcohol_consumption_per_day       242
+Level_of_Stress                     0
+Chronic_kidney_disease              0
+Adrenal_and_thyroid_disorders       0
+dtype: int64
+#filling missing values of with 0 - Reason (To be stated while documenting)
+df_1=df.apply(lambda x:x.fillna(0)
+              #x.fillna(x.value_count().index[0])
+              #if x.dtype=='object'
+              #else 
+                )
+df_1.isnull().sum()
+Patient_Number                   0
+Blood_Pressure_Abnormality       0
+Level_of_Hemoglobin              0
+Genetic_Pedigree_Coefficient     0
+Age                              0
+BMI                              0
+Sex                              0
+Pregnancy                        0
+Smoking                          0
+Physical_activity                0
+salt_content_in_the_diet         0
+alcohol_consumption_per_day      0
+Level_of_Stress                  0
+Chronic_kidney_disease           0
+Adrenal_and_thyroid_disorders    0
+dtype: int64
+#checking if some worng entry made with Sex & Pregnancy; as Male cannot be Pregnant
+pd.crosstab(df['Pregnancy'],df['Sex'])
+Sex	1
+Pregnancy	
+0.0	243
+1.0	199
+pd.crosstab(df_1['Pregnancy'],df_1['Sex'])
+Sex	0	1
+Pregnancy		
+0.0	1008	793
+1.0	0	199
+Exploratory Data Analysis
+df_1.corr()
+Patient_Number	Blood_Pressure_Abnormality	Level_of_Hemoglobin	Genetic_Pedigree_Coefficient	Age	BMI	Sex	Pregnancy	Smoking	Physical_activity	salt_content_in_the_diet	alcohol_consumption_per_day	Level_of_Stress	Chronic_kidney_disease	Adrenal_and_thyroid_disorders
+Patient_Number	1.000000	0.021430	-0.001083	0.004547	-0.030827	-0.000281	0.023494	0.045225	0.022939	0.016808	0.022992	-0.012329	-0.013779	0.022503	0.024838
+Blood_Pressure_Abnormality	0.021430	1.000000	0.139488	-0.005570	-0.066322	0.040193	0.054902	0.016015	0.012250	0.037952	0.014199	-0.025706	0.009304	0.754053	0.660064
+Level_of_Hemoglobin	-0.001083	0.139488	1.000000	-0.023890	-0.184394	0.117889	-0.412928	-0.250332	0.023349	-0.026604	0.022141	-0.048457	0.004746	0.102930	0.068901
+Genetic_Pedigree_Coefficient	0.004547	-0.005570	-0.023890	1.000000	-0.024045	-0.012949	0.012441	0.018410	-0.034063	-0.011084	0.025256	-0.033822	0.028855	0.041237	0.003805
+Age	-0.030827	-0.066322	-0.184394	-0.024045	1.000000	0.028151	0.057941	-0.301304	0.025314	0.027068	-0.045740	0.301225	0.014057	-0.064039	-0.056876
+BMI	-0.000281	0.040193	0.117889	-0.012949	0.028151	1.000000	0.010219	-0.005571	0.008927	-0.004936	0.026385	-0.033259	-0.010689	0.043316	0.037879
+Sex	0.023494	0.054902	-0.412928	0.012441	0.057941	0.010219	1.000000	0.335077	-0.000848	0.006297	-0.009347	0.030670	0.000729	0.042493	0.040195
+Pregnancy	0.045225	0.016015	-0.250332	0.018410	-0.301304	-0.005571	0.335077	1.000000	-0.078156	-0.044968	0.018897	-0.045526	0.005096	0.021122	0.017157
+Smoking	0.022939	0.012250	0.023349	-0.034063	0.025314	0.008927	-0.000848	-0.078156	1.000000	-0.014974	0.003364	0.013795	-0.026398	-0.015189	0.009486
+Physical_activity	0.016808	0.037952	-0.026604	-0.011084	0.027068	-0.004936	0.006297	-0.044968	-0.014974	1.000000	-0.032261	-0.010428	-0.033700	0.020140	0.025471
+salt_content_in_the_diet	0.022992	0.014199	0.022141	0.025256	-0.045740	0.026385	-0.009347	0.018897	0.003364	-0.032261	1.000000	-0.048369	-0.019268	-0.009596	0.014040
+alcohol_consumption_per_day	-0.012329	-0.025706	-0.048457	-0.033822	0.301225	-0.033259	0.030670	-0.045526	0.013795	-0.010428	-0.048369	1.000000	0.010977	-0.020218	-0.037271
+Level_of_Stress	-0.013779	0.009304	0.004746	0.028855	0.014057	-0.010689	0.000729	0.005096	-0.026398	-0.033700	-0.019268	0.010977	1.000000	0.026728	-0.019179
+Chronic_kidney_disease	0.022503	0.754053	0.102930	0.041237	-0.064039	0.043316	0.042493	0.021122	-0.015189	0.020140	-0.009596	-0.020218	0.026728	1.000000	0.487349
+Adrenal_and_thyroid_disorders	0.024838	0.660064	0.068901	0.003805	-0.056876	0.037879	0.040195	0.017157	0.009486	0.025471	0.014040	-0.037271	-0.019179	0.487349	1.000000
+num_vr=df_1.iloc[:,[1,2,3,4,5,9,10,11]]
+num_vr.head()
+Blood_Pressure_Abnormality	Level_of_Hemoglobin	Genetic_Pedigree_Coefficient	Age	BMI	Physical_activity	salt_content_in_the_diet	alcohol_consumption_per_day
+0	1	11.28	0.90	34	23	45961	48071	0.0
+1	0	9.75	0.23	54	33	26106	25333	205.0
+2	1	10.79	0.91	70	49	9995	29465	67.0
+3	0	11.00	0.43	71	50	10635	7439	242.0
+4	1	14.17	0.83	52	19	15619	49644	397.0
+num_vr.describe()
+Blood_Pressure_Abnormality	Level_of_Hemoglobin	Genetic_Pedigree_Coefficient	Age	BMI	Physical_activity	salt_content_in_the_diet	alcohol_consumption_per_day
+count	2000.000000	2000.000000	2000.000000	2000.000000	2000.000000	2000.000000	2000.000000	2000.000000
+mean	0.493500	11.710035	0.472055	46.558500	30.081500	25254.424500	24926.097000	220.636500
+std	0.500083	2.186701	0.303221	17.107832	11.761208	14015.439623	14211.692586	157.614106
+min	0.000000	8.100000	0.000000	18.000000	10.000000	628.000000	22.000000	0.000000
+25%	0.000000	10.147500	0.200000	32.000000	20.000000	13605.750000	13151.750000	79.000000
+50%	0.000000	11.330000	0.470000	46.000000	30.000000	25353.000000	25046.500000	212.500000
+75%	1.000000	12.945000	0.730000	62.000000	40.000000	37382.250000	36839.750000	360.250000
+max	1.000000	17.560000	1.000000	75.000000	50.000000	49980.000000	49976.000000	499.000000
+cr1=num_vr.corr()
+sb.heatmap(cr1, annot=True)
+<matplotlib.axes._subplots.AxesSubplot at 0x22be5a71cf8>
+
+f,(ax_box,ax_hist)=plt.subplots(2,gridspec_kw={"height_ratios":(.15,.85)})
+sb.boxplot(num_vr['Age'],ax=ax_box)
+sb.distplot(num_vr['Age'],ax=ax_hist,kde=False)
+plt.show()
+
+f,(ax_box,ax_hist)=plt.subplots(2,gridspec_kw={"height_ratios":(.15,.85)})
+sb.boxplot(num_vr['BMI'],ax=ax_box)
+sb.distplot(num_vr['BMI'],ax=ax_hist,kde=False)
+plt.show()
+
+f,(ax_box,ax_hist)=plt.subplots(2,gridspec_kw={"height_ratios":(.15,.85)})
+sb.boxplot(num_vr['Physical_activity'],ax=ax_box)
+sb.distplot(num_vr['Physical_activity'],ax=ax_hist,kde=False)
+plt.show()
+
+f,(ax_box,ax_hist)=plt.subplots(2,gridspec_kw={"height_ratios":(.15,.85)})
+sb.boxplot(num_vr['salt_content_in_the_diet'],ax=ax_box)
+sb.distplot(num_vr['salt_content_in_the_diet'],ax=ax_hist,kde=False)
+plt.show()
+
+f,(ax_box,ax_hist)=plt.subplots(2,gridspec_kw={"height_ratios":(.15,.85)})
+sb.boxplot(num_vr['alcohol_consumption_per_day'],ax=ax_box)
+sb.distplot(num_vr['alcohol_consumption_per_day'],ax=ax_hist,kde=False)
+plt.show()
+
+sb.lmplot(x='Genetic_Pedigree_Coefficient',y='Level_of_Hemoglobin',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22be5f67978>
+
+sb.lmplot(x='Genetic_Pedigree_Coefficient',y='Age',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22be60849b0>
+
+sb.lmplot(x='Genetic_Pedigree_Coefficient',y='BMI',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22be91099b0>
+
+sb.lmplot(x='Genetic_Pedigree_Coefficient',y='Physical_activity',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22be9200128>
+
+sb.lmplot(x='Genetic_Pedigree_Coefficient',y='salt_content_in_the_diet',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22be92c0668>
+
+sb.lmplot(x='Genetic_Pedigree_Coefficient',y='alcohol_consumption_per_day',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22be928b828>
+
+sb.lmplot(x='Level_of_Hemoglobin',y='Age',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22be93505c0>
+
+sb.lmplot(x='Level_of_Hemoglobin',y='BMI',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22be94099b0>
+
+sb.lmplot(x='Level_of_Hemoglobin',y='Physical_activity',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22be93d1a20>
+
+sb.lmplot(x='Level_of_Hemoglobin',y='salt_content_in_the_diet',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22be5ca20b8>
+
+sb.lmplot(x='Level_of_Hemoglobin',y='alcohol_consumption_per_day',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22be5c732b0>
+
+sb.lmplot(x='Age',y='BMI',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22be5d8cef0>
+
+sb.lmplot(x='Age',y='Physical_activity',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22bea5b0160>
+
+sb.lmplot(x='Age',y='salt_content_in_the_diet',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22bea697c18>
+
+sb.lmplot(x='Age',y='alcohol_consumption_per_day',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22bea7741d0>
+
+sb.lmplot(x='BMI',y='Physical_activity',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22bea7ec518>
+
+sb.lmplot(x='BMI',y='salt_content_in_the_diet',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22beb85d198>
+
+sb.lmplot(x='BMI',y='alcohol_consumption_per_day',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22beb967780>
+
+sb.lmplot(x='Physical_activity',y='salt_content_in_the_diet',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22beba03e48>
+
+sb.lmplot(x='Physical_activity',y='alcohol_consumption_per_day',data=num_vr,col='Blood_Pressure_Abnormality',fit_reg=False,legend=True)
+<seaborn.axisgrid.FacetGrid at 0x22bebb15c50>
+
+cat_vr=df_1.iloc[:,[1,6,7,8,12,13,14]]
+cat_vr.head()
+Blood_Pressure_Abnormality	Sex	Pregnancy	Smoking	Level_of_Stress	Chronic_kidney_disease	Adrenal_and_thyroid_disorders
+0	1	1	1.0	0	2	1	1
+1	0	1	0.0	0	3	0	0
+2	1	0	0.0	0	2	1	0
+3	0	0	0.0	0	1	0	0
+4	1	0	0.0	0	2	0	0
+pd.crosstab(cat_vr['Blood_Pressure_Abnormality'],cat_vr['Sex'])
+Sex	0	1
+Blood_Pressure_Abnormality		
+0	538	475
+1	470	517
+pd.crosstab(cat_vr['Blood_Pressure_Abnormality'],cat_vr['Pregnancy'])
+Pregnancy	0.0	1.0
+Blood_Pressure_Abnormality		
+0	917	96
+1	884	103
+pd.crosstab(cat_vr['Blood_Pressure_Abnormality'],cat_vr['Smoking'])
+Smoking	0	1
+Blood_Pressure_Abnormality		
+0	503	510
+1	478	509
+pd.crosstab(cat_vr['Blood_Pressure_Abnormality'],cat_vr['Chronic_kidney_disease'])
+Chronic_kidney_disease	0	1
+Blood_Pressure_Abnormality		
+0	1013	0
+1	274	713
+pd.crosstab(cat_vr['Blood_Pressure_Abnormality'],cat_vr['Adrenal_and_thyroid_disorders'])
+Adrenal_and_thyroid_disorders	0	1
+Blood_Pressure_Abnormality		
+0	1013	0
+1	391	596
+pd.crosstab(cat_vr['Sex'],cat_vr['Pregnancy'])
+Pregnancy	0.0	1.0
+Sex		
+0	1008	0
+1	793	199
+pd.crosstab(cat_vr['Sex'],cat_vr['Smoking'])
+Smoking	0	1
+Sex		
+0	494	514
+1	487	505
+pd.crosstab(cat_vr['Sex'],cat_vr['Chronic_kidney_disease'])
+Chronic_kidney_disease	0	1
+Sex		
+0	669	339
+1	618	374
+pd.crosstab(cat_vr['Sex'],cat_vr['Adrenal_and_thyroid_disorders'])
+Adrenal_and_thyroid_disorders	0	1
+Sex		
+0	726	282
+1	678	314
+pd.crosstab(cat_vr['Pregnancy'],cat_vr['Smoking'])
+Smoking	0	1
+Pregnancy		
+0.0	860	941
+1.0	121	78
+pd.crosstab(cat_vr['Pregnancy'],cat_vr['Chronic_kidney_disease'])
+Chronic_kidney_disease	0	1
+Pregnancy		
+0.0	1165	636
+1.0	122	77
+pd.crosstab(cat_vr['Pregnancy'],cat_vr['Adrenal_and_thyroid_disorders'])
+Adrenal_and_thyroid_disorders	0	1
+Pregnancy		
+0.0	1269	532
+1.0	135	64
+pd.crosstab(cat_vr['Smoking'],cat_vr['Chronic_kidney_disease'])
+Chronic_kidney_disease	0	1
+Smoking		
+0	624	357
+1	663	356
+pd.crosstab(cat_vr['Smoking'],cat_vr['Adrenal_and_thyroid_disorders'])
+Adrenal_and_thyroid_disorders	0	1
+Smoking		
+0	693	288
+1	711	308
+pd.crosstab(cat_vr['Chronic_kidney_disease'],cat_vr['Adrenal_and_thyroid_disorders'])
+Adrenal_and_thyroid_disorders	0	1
+Chronic_kidney_disease		
+0	1117	170
+1	287	426
+cat_vr.describe()
+Blood_Pressure_Abnormality	Sex	Pregnancy	Smoking	Level_of_Stress	Chronic_kidney_disease	Adrenal_and_thyroid_disorders
+count	2000.000000	2000.000000	2000.000000	2000.000000	2000.000000	2000.000000	2000.000000
+mean	0.493500	0.496000	0.099500	0.509500	2.012500	0.356500	0.298000
+std	0.500083	0.500109	0.299407	0.500035	0.823822	0.479085	0.457494
+min	0.000000	0.000000	0.000000	0.000000	1.000000	0.000000	0.000000
+25%	0.000000	0.000000	0.000000	0.000000	1.000000	0.000000	0.000000
+50%	0.000000	0.000000	0.000000	1.000000	2.000000	0.000000	0.000000
+75%	1.000000	1.000000	0.000000	1.000000	3.000000	1.000000	1.000000
+max	1.000000	1.000000	1.000000	1.000000	3.000000	1.000000	1.000000
+Modelling
+#Data Transformation
+df_1.head()
+df_2=df_1.copy()
+sub_1=df_2.iloc[:,2:6]
+sub_3=df_2.iloc[:,6:9]
+sub_2=df_2.iloc[:,9:12]
+sub_4=df_2.iloc[:,12:15]
+f_sub1=StandardScaler().fit(sub_1)
+t_sub1=f_sub1.transform(sub_1)
+f_sub2=StandardScaler().fit(sub_2)
+t_sub2=f_sub2.transform(sub_2)
+C:\Users\rm\Anaconda3\lib\site-packages\sklearn\preprocessing\data.py:625: DataConversionWarning: Data with input dtype int64, float64 were all converted to float64 by StandardScaler.
+  return self.partial_fit(X, y)
+C:\Users\rm\Anaconda3\lib\site-packages\ipykernel_launcher.py:9: DataConversionWarning: Data with input dtype int64, float64 were all converted to float64 by StandardScaler.
+  if __name__ == '__main__':
+C:\Users\rm\Anaconda3\lib\site-packages\sklearn\preprocessing\data.py:625: DataConversionWarning: Data with input dtype int64, float64 were all converted to float64 by StandardScaler.
+  return self.partial_fit(X, y)
+C:\Users\rm\Anaconda3\lib\site-packages\ipykernel_launcher.py:11: DataConversionWarning: Data with input dtype int64, float64 were all converted to float64 by StandardScaler.
+  # This is added back by InteractiveShellApp.init_path()
+#summary Statistics for transformed variables
+round(pd.DataFrame(t_sub1).describe(),2)
+0	1	2	3
+count	2000.00	2000.00	2000.00	2000.00
+mean	0.00	0.00	-0.00	0.00
+std	1.00	1.00	1.00	1.00
+min	-1.65	-1.56	-1.67	-1.71
+25%	-0.71	-0.90	-0.85	-0.86
+50%	-0.17	-0.01	-0.03	-0.01
+75%	0.56	0.85	0.90	0.84
+max	2.68	1.74	1.66	1.69
+round(pd.DataFrame(t_sub2).describe(),2)
+0	1	2
+count	2000.00	2000.00	2000.00
+mean	-0.00	-0.00	-0.00
+std	1.00	1.00	1.00
+min	-1.76	-1.75	-1.40
+25%	-0.83	-0.83	-0.90
+50%	0.01	0.01	-0.05
+75%	0.87	0.84	0.89
+max	1.76	1.76	1.77
+x=np.hstack((t_sub1,t_sub2,sub_3,sub_4))
+y=df_2.iloc[:,1]
+Model Selection
+model_params={
+    'svm':{
+        'model':svm.SVC(gamma='auto'),
+        'params':{
+            'C':[1,10,20],
+            'kernel':['rbf','linear']
+        }
+    },
+    'random_forest':{
+        'model':RandomForestClassifier(),
+        'params':{
+            'n_estimators':[1,5,10]
+        }
+    },
+    'logistic_regression':{
+        'model':LogisticRegression(multi_class='auto'),
+        'params':{
+            'solver':['liblinear','newton-cg','saga'],
+            'C':[1,5,10]
+        }
+    }
+}
+scores=[]
+​
+for model_name,mp in model_params.items():
+    clf=GridSearchCV(mp['model'],mp['params'],cv=5,return_train_score=False)
+    clf.fit(x,y)
+    scores.append({
+        'model':model_name,
+        'best_score':clf.best_score_,
+        'best_params':clf.best_params_
+    })
+pd.DataFrame(scores,columns=['model','best_score','best_params'])
+model	best_score	best_params
+0	svm	0.9550	{'C': 10, 'kernel': 'rbf'}
+1	random_forest	0.9545	{'n_estimators': 10}
+2	logistic_regression	0.9500	{'C': 10, 'solver': 'liblinear'}
+#SVC Fitting for best score params
+x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.2)
+model_rf=RandomForestClassifier(n_estimators=10)
+model_rf.fit(x_train,y_train)
+model_rf.score(x_test,y_test)
+0.9575
+y_pred=model_rf.predict(x_test)
+y_vald=model_rf.predict(x_train)
+Accuracy Metrics
+accuracy_score(y_train,y_vald),accuracy_score(y_test,y_pred)
+(0.99625, 0.9575)
+print(classification_report(y_train,y_vald))
+              precision    recall  f1-score   support
+
+           0       0.99      1.00      1.00       818
+           1       1.00      0.99      1.00       782
+
+   micro avg       1.00      1.00      1.00      1600
+   macro avg       1.00      1.00      1.00      1600
+weighted avg       1.00      1.00      1.00      1600
+
+print(classification_report(y_test,y_pred))
+---------------------------------------------------------------------------
+NameError                                 Traceback (most recent call last)
+<ipython-input-1-221bda6bfc4f> in <module>
+----> 1 print(classification_report(y_test,y_pred))
+
+NameError: name 'classification_report' is not defined
+
+54808/10
+5480.8
